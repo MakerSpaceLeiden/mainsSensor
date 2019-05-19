@@ -155,7 +155,7 @@ sei();             // enable global interrupts (For timer, and uart.h)
 
 TCCR0A = 1<<WGM01; // CTC mode
 TCCR0B = 1<<CS01;  // clkIO/8 (16Mhz/8=2MHz)
-OCR0A = 100;       // 16MHz/8/100= 20kHz --- 50 us
+OCR0A = 20; // 16M/8/20=100 Khz (was 100 16MHz/8/100= 20kHz --- 50 us) now 10 us
 TIMSK0 = (1<<OCIE0A); // enable OC1A interrupt
 
 // set pin modes for LED/7seg/display/whateveroutputischoosen
@@ -242,16 +242,16 @@ ISR(BADISR_vect)
     // just reset, but have this here so I could in theory add a handler
 }
 
-ISR(TIMER0_COMPA_vect){ // 16E6/8/100 = 20 kHz (50 us, for receiver timing.)
-static uint8_t prescale = 0, prev = 0, tmp; 
-static uint16_t timer, timestamp; // it should also work with 8 bit timestamps (timer-timestamp >= n should be overflow safe), but it does not.
+ISR(TIMER0_COMPA_vect){ // 16E6/8/20 = 100 kHz (10 us, for receiver timing.)
+static uint8_t prev = 0, tmp; 
+static uint16_t prescale = 0, timer, timestamp; // it should also work with 8 bit timestamps (timer-timestamp >= n should be overflow safe), but it does not.
 
-    if(prescale>=200){
-    now++; // 20 kHz / 200 = 100 Hz
+    if(prescale>=1000){
+    now++; // 100 kHz / 1000 = 100 Hz
     prescale = 0;
     }
 prescale++;
-timer++; // use seperate variable that does not reset at 200 but overflows like expected.
+timer++; // use seperate variable that does not reset at 1000 but overflows like expected.
 tmp=(PIND&(1<<PIND2)); // because PIND is volatile but I only want to read it once to prevent race conditions
     switch(bit_st){
     case WAITFORSTART:
@@ -269,8 +269,8 @@ tmp=(PIND&(1<<PIND2)); // because PIND is volatile but I only want to read it on
     case OTHERBITS:
         if(tmp != prev){ // only respond to edges 
             prev=tmp;
-            if(timer-timestamp<=19){      // at most 950us appart (Otherwise, restart)
-                if((timer-timestamp)>=9){ // at least 9*50 = 450 us appart (half a bittime is about 300 us) (Otherwise, wait longer and continue)
+            if(timer-timestamp<=95){      // at most 950us appart (Otherwise, restart)
+                if((timer-timestamp)>=31){ // at least 31*10 = 310 us appart (half a bittime is about 300 us) (Otherwise, wait longer and continue)
                     rec_buff=rec_buff<<1; // shift in the (previous) bits before adding a new one (or a new zero)                
                     if(!tmp) rec_buff|=1; // if PIND2 is low now, it was a high-to-low transition, so a 1.
                     bitcnt--;             // and count them
