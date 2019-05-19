@@ -245,7 +245,7 @@ ISR(BADISR_vect)
 ISR(TIMER0_COMPA_vect){ // 16E6/8/20 = 100 kHz (10 us, for receiver timing.)
 static uint8_t prev = 0, tmp; 
 static uint16_t prescale = 0, timer, timestamp; // it should also work with 8 bit timestamps (timer-timestamp >= n should be overflow safe), but it does not.
-
+PORTC|=(1<<1); // to show interrupt timing;
     if(prescale>=1000){
     now++; // 100 kHz / 1000 = 100 Hz
     prescale = 0;
@@ -270,7 +270,7 @@ tmp=(PIND&(1<<PIND2)); // because PIND is volatile but I only want to read it on
         if(tmp != prev){ // only respond to edges 
             prev=tmp;
             if(timer-timestamp<=95){      // at most 950us appart (Otherwise, restart)
-                if((timer-timestamp)>=31){ // at least 31*10 = 310 us appart (half a bittime is about 300 us) (Otherwise, wait longer and continue)
+                if((timer-timestamp)>=45){ // at least 450 us appart (half a bittime is about 300 us) (Otherwise, wait longer and continue)
                     rec_buff=rec_buff<<1; // shift in the (previous) bits before adding a new one (or a new zero)                
                     if(!tmp) rec_buff|=1; // if PIND2 is low now, it was a high-to-low transition, so a 1.
                     bitcnt--;             // and count them
@@ -282,6 +282,7 @@ tmp=(PIND&(1<<PIND2)); // because PIND is volatile but I only want to read it on
     default:
     bit_st=WAITFORSTART; 
     }
+PINC=(1<<1); // to show interrupt timing;
 }
 
 
