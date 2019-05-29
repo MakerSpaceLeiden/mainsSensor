@@ -323,7 +323,11 @@ clean:
 testgen: test.c transmit.c transmit.h
 	gcc -o testgen test.c transmit.c
 
-test: testgen
-	./testgen # and perhaps pipe this into a recv testread
+testrecv: testrecv.c
+	gcc -o testrecv testrecv.c
+
+test: testgen testrecv
+	# ./testgen # and perhaps pipe this into a recv testread
+	./testgen  | ./testrecv
 #####                    EOF                   #####
 
