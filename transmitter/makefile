@@ -320,6 +320,10 @@ clean:
 	$(REMOVE) $(HEXTRG)
 	
 
+testgen: test.c transmit.c transmit.h
+	gcc -o testgen test.c transmit.c
 
+test: testgen
+	./testgen # and perhaps pipe this into a recv testread
 #####                    EOF                   #####
 
