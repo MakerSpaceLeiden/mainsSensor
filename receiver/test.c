@@ -1,11 +1,6 @@
 #include <readline/readline.h>
 #include <strings.h>
-
-
-typedef struct { 
-	unsigned long d; 
-	int v;
-} item_t;
+#include "receive.h"
 
 unsigned char rev8(unsigned char b) {
    b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
@@ -14,7 +9,7 @@ unsigned char rev8(unsigned char b) {
    return b;
 }
 
-void proc_datagram(int n, unsigned char * data) {
+void proc_datagram(size_t n, unsigned char * data) {
 /*
 transmitmanch((mF<<8)|mF); // Bias RX/TX / preamble. All "ones" so no matter which "one" it sees as a startbit, things will be fine once synchronized
 transmitmanch((mF<<8)|mF); 
@@ -33,7 +28,7 @@ else
 	transmitmanch((m0<<8)|m0); // Hi=0xFF, Bye=0x00. 
 transmitend(); // always end with the pin LOW
 */
-	printf("Read %d bits - expected 11x8=88 bits\n", n);
+	printf("Read %zu bits - expected 11x8=88 bits\n", n);
 	printf("Expect\tff ff ff ff ff ff ff a5 ID ID XX #  XX=FF or 00\n");
 	printf("Expect\tff ff ff ff ff ff ff a5 77 77 XX\n");
         printf("Result\t.. .. .. .. .. .. ");
@@ -42,60 +37,6 @@ transmitend(); // always end with the pin LOW
                 printf("%02x%s", rev8(data[i]), (i % 11 == 10) ? "\n\t" : " ");
 	};
         printf("\n");
-}
-
-int tick = 100;
-void proc(size_t n, item_t * data) {
-	#define SHORT 0
-	#define LONG 1
-	#define HIGH 1
-	#define LOW 0
-	unsigned char out[512];
-	int j = 0;
-	int tickcrit = 1.5 * tick;
-	enum { TRAIN, SYNC, READ } state;
-	int len = 0;
-	for(int i = 0; i < n-1; i++) {
-		if (data[i].d > 3* tickcrit) {
-			printf("Sta to train (gap)\n");
-			i++;
-			state = TRAIN;
-			len = 0;
-			continue;
-		};
-		if (state == TRAIN) {
-			// Keep going until we see at least 9 short pulses
-			// and no long one.
-			if (data[i].d < tickcrit || len < 24) {
-				len++;
-				continue;
-			};
-			state = SYNC;
-			printf("State to sync (%d FF bytes)\n", len/16);
-			bzero(out,sizeof(out));
-			for(j=0;j<9;j++)
-				out[j/8] |= (1<<(j&7));
-		}; 
-		
-		out[j/8] |= (data[i].v ? 0 : 1)<<(j & 7);
-		j++;
-		if (data[i+1].d < tickcrit)
-			i++;
-
-		if (state == SYNC) {
-			if (j == 16) {
-				// Seek for ff A5
-				state = (out[1] == 0xA5) ? READ : SYNC;
-				printf("State to %s\n", state == READ ? "read" : "sync");
-			};
-			continue;
-		};
-		if (state == READ && j == 40) {
-			proc_datagram(j, out);
-			printf("State to Train (end)\n");
-			state = TRAIN;
-		};
-	};
 }
 
 int main(int argc, char ** argv) {
