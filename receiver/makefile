@@ -315,7 +315,7 @@ clean:
 	$(REMOVE) $(HEXTRG) test-receive
 
 test-receive: test.c receive.c receive.h	
-	gcc -glldb -DTEST -o test-receive test.c receive.c 
+	gcc -DTEST -o test-receive test.c receive.c 
 
 test: test-receive
 	cat sample-test.txt | ./test-receive
