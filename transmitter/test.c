@@ -4,8 +4,7 @@
 
 #include "transmit.h"
 
-// const uint32_t ID = 0x6A6A6A6A; //0x7777
-const uint32_t	  ID = 0x12345678; //0x7777
+const uint32_t ID = 0x6A6A6A6A; //0x7777
 
 static unsigned long timecntr = 0; //microSeconds
 
@@ -60,6 +59,6 @@ main(void)
 		timecntr += 2000000 + (rand() & 255);
                 
 	}
-	close(stdout);
+	fclose(stdout);
 	exit(0);
 }

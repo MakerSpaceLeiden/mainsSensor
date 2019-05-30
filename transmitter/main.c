@@ -18,6 +18,8 @@
 #include <util/delay.h>
 #include <avr/interrupt.h>
 
+#include "transmit.h"
+
 const uint32_t ID = 0x6A6A6A6A; //0x7777
 
 void transmitend() {

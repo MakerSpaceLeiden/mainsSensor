@@ -19,6 +19,8 @@ E      0b10101001
 F      0b10101010
 */
 
+// Manchester per IEEE 802.3 - LSB shifted out first.
+//
 const uint8_t m0 =0b01010101; //0x55
 const uint8_t m1 =0b01010110; //0x56
 const uint8_t m2 =0b01011001; //0x59

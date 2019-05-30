@@ -86,7 +86,7 @@ PROJECTNAME=mainssensor_r
 # (list all files to compile, e.g. 'a.c b.cpp as.S'):
 # Use .cc, .cpp or .C suffix for C++ files, use .S 
 # (NOT .s !!!) for assembly source code files.
-PRJSRC=main.c ./uartlibrary/uart.c
+PRJSRC=main.c ./uartlibrary/uart.c 
 # myclass.cpp lowlevelstuff.S
 
 # additional includes (e.g. -I/path/to/mydir)
@@ -199,7 +199,7 @@ OBJDEPS=$(CFILES:.c=.o)    \
 	$(CPPFILES:.cpp=.o)\
 	$(BIGCFILES:.C=.o) \
 	$(CCFILES:.cc=.o)  \
-	$(ASMFILES:.S=.o)
+	$(ASMFILES:.S=.o) 
 
 # Define all lst files.
 LST=$(filter %.lst, $(OBJDEPS:.o=.lst))
@@ -312,9 +312,13 @@ clean:
 	$(REMOVE) $(OBJDEPS)
 	$(REMOVE) $(LST) $(GDBINITFILE)
 	$(REMOVE) $(GENASMFILES)
-	$(REMOVE) $(HEXTRG)
-	
+	$(REMOVE) $(HEXTRG) test-receive
 
+test-receive: test.c receive.c receive.h	
+	gcc -DTEST -o test-receive $<
+
+test: test-receive
+	cat sample-test.txt | ./test-receive
 
 #####                    EOF                   #####
 

@@ -88,7 +88,7 @@ PROJECTNAME=mainssensor
 # (list all files to compile, e.g. 'a.c b.cpp as.S'):
 # Use .cc, .cpp or .C suffix for C++ files, use .S 
 # (NOT .s !!!) for assembly source code files.
-PRJSRC=main.c
+PRJSRC=main.c transmit.c
 # myclass.cpp lowlevelstuff.S
 
 # additional includes (e.g. -I/path/to/mydir)
@@ -247,7 +247,6 @@ $(DUMPTRG): $(TRG)
 $(TRG): $(OBJDEPS) 
 	$(CC) $(LDFLAGS) -o $(TRG) $(OBJDEPS)
 
-
 #### Generating assembly ####
 # asm from C
 %.s: %.c
@@ -317,17 +316,13 @@ clean:
 	$(REMOVE) $(OBJDEPS)
 	$(REMOVE) $(LST) $(GDBINITFILE)
 	$(REMOVE) $(GENASMFILES)
-	$(REMOVE) $(HEXTRG)
+	$(REMOVE) $(HEXTRG) test-send
 	
+test-send: test.c transmit.c transmit.h
+	gcc -DTEST -o test-send test.c transmit.c
 
-testgen: test.c transmit.c transmit.h
-	gcc -o testgen test.c transmit.c
+test: test-send
+	./test-send > /dev/null
 
-testrecv: testrecv.c
-	gcc -o testrecv testrecv.c
-
-test: testgen testrecv
-	# ./testgen # and perhaps pipe this into a recv testread
-	./testgen  | ./testrecv
 #####                    EOF                   #####
 
