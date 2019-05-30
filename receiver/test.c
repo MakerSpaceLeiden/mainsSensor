@@ -34,9 +34,14 @@ transmitend(); // always end with the pin LOW
         printf("Result\t.. .. .. .. .. .. ");
 
         for(int i = 0; i < n/8; i++) {
-                printf("%02x%s", rev8(data[i]), (i % 11 == 10) ? "\n\t" : " ");
+                printf("%02x%s", data[i], (i % 11 == 10) ? "\n\t" : " ");
 	};
         printf("\n");
+	if ((data[4] == 0 || data[4] == 0xFF)  && data[0] == 0xFF && data[1] == 0xA5)
+		printf("\n===>Sensor: %x.%x - state: %s\n\n", data[2], data[3], data[4] ? "OFF" : "ON");
+	else {
+		printf("Fail.");
+	};
 }
 
 int main(int argc, char ** argv) {

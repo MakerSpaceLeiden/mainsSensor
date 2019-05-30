@@ -26,11 +26,10 @@ void proc(size_t n, item_t * data) {
 			};
 			state = SYNC;
 			bzero(out,sizeof(out));
-			// for(j=0;j<9;j++) out[j/8] |= (1<<(j&7));
-			out[0] = 0xFF; out[1] = 0x01; j = 9;
+			out[0] = 0xFF; out[1] = 0x80; j = 9;
 		}; 
 		
-		out[j/8] |= (data[i].v ? 0 : 1)<<(j & 7);
+		out[j/8] |= (data[i].v ? 0 : 1)<<(7-(j & 7));
 		j++;
 		if (data[i+1].d < tickcrit)
 			i++;
@@ -38,6 +37,7 @@ void proc(size_t n, item_t * data) {
 		if (state == SYNC) {
 			if (j == 16) {
 				// Seek for ff A5
+				printf("%x %x\n", out[0], out[1]);
 				state = (out[1] == 0xA5) ? READ : SYNC;
 			};
 			continue;
