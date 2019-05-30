@@ -77,9 +77,11 @@ void loop()
   while (recn) {
     if (recvSemaphore && xSemaphoreTake( recvSemaphore, ( TickType_t ) 10 ) == pdTRUE ) {
       recn--;
+      mainsnode_datagram_t tmp = recbuff[recn];
+      xSemaphoreGive( recvSemaphore );
+
       Serial.printf("Node %d is %s\n",
                     recbuff[recn].node_id, recbuff[recn].state ? "on" : "off");
-      xSemaphoreGive( recvSemaphore );
     } else {
       sem_rd_errs++;
     }
