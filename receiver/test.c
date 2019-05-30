@@ -45,21 +45,35 @@ transmitend(); // always end with the pin LOW
 }
 
 int main(int argc, char ** argv) {
-  	unsigned long delta;
-	int val;
 	#define N (5000)
-	item_t vals[N];
+	rmt_data_t vals[N];
 	int n = 0;
+
+	if (argc == 2)
+		stdin = fopen(argv[1],"r");
 	
-	while((!feof(stdin)) && n < N) {
+	while(!feof(stdin) && n < N) {
+  		unsigned long delta0, delta1; int val0, val1;
 		char buff[1024];
-		gets(buff);
-		if (sscanf(buff, "%012lu %d", &delta, &val)) {
-			vals[n++] = (item_t){ delta, val };
-			// printf("-->%d %lu %d\n", n, delta, val);
-		} else {
+		for(;!feof(stdin);) {
+			gets(buff);
+			if (sscanf(buff, "%012lu %d", &delta0, &val0))
+				break;
+			printf("%s\n", buff);
+		}
+		for(;!feof(stdin);) {
+			gets(buff);
+			if (sscanf(buff, "%012lu %d", &delta1, &val1))
+				break;
 			printf("%s\n", buff);
 		};
+		vals[n++] = (rmt_data_t){ delta0, val0, delta1, val1 };
+	};
+	printf("Read %d pairs\n", n);
+        if (0) for(int i =0; i<n; i++) {
+		rmt_data_t p = vals[i];
+		printf("-> %d %d\n", p.duration0, p.level0);
+		printf("-> %d %d\n", p.duration1, p.level1);
 	};
 	proc(n, vals);
 };
