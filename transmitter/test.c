@@ -4,7 +4,7 @@
 
 #include "transmit.h"
 
-const uint32_t ID = 0x6A6A6A6A; //0x7777
+const uint32_t ID = 0x9AA9A966;
 
 static unsigned long timecntr = 0; //microSeconds
 

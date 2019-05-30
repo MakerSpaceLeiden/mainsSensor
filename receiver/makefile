@@ -90,7 +90,7 @@ PRJSRC=main.c ./uartlibrary/uart.c
 # myclass.cpp lowlevelstuff.S
 
 # additional includes (e.g. -I/path/to/mydir)
-INC=-I/usr/lib/avr/include
+INC=-I/usr/lib/avr/include -I..
 
 # libraries to link in (e.g. -lmylib)
 LIBS=
@@ -315,7 +315,7 @@ clean:
 	$(REMOVE) $(HEXTRG) test-receive
 
 test-receive: test.c receive.c receive.h	
-	gcc -DTEST -o test-receive test.c receive.c 
+	gcc -I.. -DTEST -o test-receive test.c receive.c 
 
 test: test-receive
 	cat sample-test.txt | ./test-receive
