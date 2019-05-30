@@ -5,6 +5,8 @@
 
 #include "esp32-hal.h"
 
+#define GPIO_INPUT_PIN (21)
+
 rmt_obj_t* rmt_recv = NULL;
 
 #define MAXREC (4)
@@ -58,7 +60,7 @@ void setup()
 
 
   // Initialize the channel to capture up to 192 items
-  if ((rmt_recv = rmtInit(21, false, RMT_MEM_192)) == NULL)
+  if ((rmt_recv = rmtInit(GPIO_INPUT_PIN false, RMT_MEM_192)) == NULL)
   {
     Serial.println("init receiver failed\n");
   }
