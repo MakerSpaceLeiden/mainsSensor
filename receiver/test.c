@@ -1,4 +1,3 @@
-#include <readline/readline.h>
 #include <strings.h>
 #include "receive.h"
 
@@ -28,9 +27,7 @@ else
 	transmitmanch((m0<<8)|m0); // Hi=0xFF, Bye=0x00. 
 transmitend(); // always end with the pin LOW
 */
-	printf("Read %zu bits - expected 11x8=88 bits\n", n);
 	printf("Expect\tff ff ff ff ff ff ff a5 ID ID XX #  XX=FF or 00\n");
-	printf("Expect\tff ff ff ff ff ff ff a5 77 77 XX\n");
         printf("Result\t.. .. .. .. .. .. ");
 
         for(int i = 0; i < n/8; i++) {
@@ -38,7 +35,7 @@ transmitend(); // always end with the pin LOW
 	};
         printf("\n");
 	if ((data[4] == 0 || data[4] == 0xFF)  && data[0] == 0xFF && data[1] == 0xA5)
-		printf("\n===>Sensor: %x.%x - state: %s\n\n", data[2], data[3], data[4] ? "OFF" : "ON");
+		printf("\n===>Sensor: %x.%x - state: %s\n\n", data[2], data[3], data[4] ? "On" : "Off");
 	else {
 		printf("Fail.");
 	};

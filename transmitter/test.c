@@ -31,6 +31,7 @@ transmitend()
 	_transmit(0);
 };
 
+int delta = 100;
 void
 transmitmanch(uint16_t tx)
 {
@@ -44,8 +45,11 @@ transmitmanch(uint16_t tx)
 		_transmit(level);
 		i++;
 		tx = tx << 1; //MSB first
-		timecntr += 100 + (rand() & 3); //microSeconds
+		timecntr += delta + (rand() & 3);
 	} while (i < 16);
+
+	// slowly go slower.
+	delta += (rand() & 3); //microSeconds
 }
 
 int
