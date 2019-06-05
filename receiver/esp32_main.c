@@ -34,17 +34,18 @@ void proc_datagram(size_t n, unsigned char * data) {
     return;
   };
 
-  if (max_errs &&  xSemaphoreTake( recvSemaphore, ( TickType_t ) 10 ) == pdTRUE ) {
-    recbuff[recn++] = m;
-    xSemaphoreGive( recvSemaphore );
-  } else {
+  if (max_errs &&  xSemaphoreTake( recvSemaphore, ( TickType_t ) 10 ) != pdTRUE ) {
     sem_wr_errs++;
+    return;
   };
+
+  recbuff[recn++] = m;
+  xSemaphoreGive( recvSemaphore );
   /*
     Serial.printf("\n===>Sensor %08x: %x - state: %s (%x)\n\n", m.val,
                   ntohs(m.node_id), (m.state == MAINSNODE_STATE_ON) ? "On" : "Off", m.state);
   */
-};
+}
 
 extern "C" void receive_data(uint32_t *data, size_t len)
 {
@@ -68,6 +69,14 @@ void setup()
   // Setup 1us tick
   float realTick = rmtSetTick(rmt_recv, 1000);
 
+/*
+ NB: https://www.mouser.com/pdfdocs/ESP32-Tech_Reference.pdf
+ 
+ section 15.2.5
+	perhaps better to set an idle threshold, enable filtering
+	and install an interrupt on RMT_CHn_RX_END_INT
+	to call our read.
+*/
   // Ask to start reading
   rmtRead(rmt_recv, receive_data);
 }
