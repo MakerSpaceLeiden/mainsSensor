@@ -1,37 +1,44 @@
-#include "receive.h"
 #include "mainsnode.h"
 #include <functional>
+#include "esp32-hal.h"
+
+#ifndef _H_MAINSENSOR
+#define _H_MAINSSENSOR
 
 class MainSensorReceiver {
-public:
-	// shall we also pass the PIN, `self' or any void * private data;
-        // so that we can deal with multiple listners, etc.
-	//
-        typedef std::function<void(mainsnode_datagram_t * dgram)> msr_callback_t;
+  public:
+    // shall we also pass the PIN, `self' or any void * private data;
+    // so that we can deal with multiple listners, etc.
+    //
+    typedef std::function<void(mainsnode_datagram_t * dgram)> msr_callback_t;
+    typedef std::function<void(rmt_data_t * items, size_t len)> msr_raw_callback_t;
 
-	MainSensorReceiver(
-           gpio_num_t pin,
-           msr_callback_t cb = NULL,
-           rmt_channel_t rmt_channel = RMT_CHANNEL_0,
-           uint32_t shortPulseMicroSeconds = 100) 
-        : 
-		_pin(pin),
-		_callback(cb),
-		_rmt_channel(rmt_channel),
-		_shortPulseMicroSeconds(shortPulseMicroSeconds)
-	{
-	}
+    MainSensorReceiver(
+      gpio_num_t pin,
+      msr_callback_t cb = NULL,
+      uint32_t shortPulseMicroSeconds = 250)
+      :
+      _pin(pin),
+      _callback(cb),
+      _shortPulseMicroSeconds(shortPulseMicroSeconds)
+    {
+    }
+    void setRawcb(msr_raw_callback_t cb) { _rawcb = cb; };
+    void setup();
+    void begin(); 
+    void end();
 
-       void setup(); 
-       void begin(); // needs to be called to stop colleting data.
-       void end();
+    float nanoseconds(uint32_t ticks) { return ticks * _realTickNanoSeconds; };
 
-       // Glue -- not quite public.
-       void update(mainsnode_datagram_t * dgram);
-       gpio_num_t _pin;
-       msr_callback_t _callback;
-       rmt_channel_t _rmt_channel;
-       uint32_t _shortPulseMicroSeconds;
-}
+    // Glue -- not quite public.
+    void process(rmt_data_t * items, size_t len);
+  private:
+    gpio_num_t _pin;
+    msr_callback_t _callback;
+    uint32_t _shortPulseMicroSeconds, _shortPulseTicks;
+    float _realTickNanoSeconds;
+    rmt_obj_t* rmt_recv = NULL;
+    msr_raw_callback_t _rawcb = NULL;
+};
 
-;
+#endif

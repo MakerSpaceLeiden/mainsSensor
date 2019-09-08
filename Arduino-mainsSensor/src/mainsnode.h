@@ -1,19 +1,32 @@
 #ifndef _H_MAINSNODE
 #define _H_MAINSNODE
-// Salient part of the current datagram.
-//
-typedef union {
-		struct /* _attribute__((__packed__)) */ {
-			#define MAINSNODE_HDR (0xA5)
-			unsigned char hdr;	// fixed to A5 for this version.
-			unsigned short node_id;	// network order.
-			#define MAINSNODE_STATE_ON (0xFF)
-			#define MAINSNODE_STATE_OFF (0)
-			unsigned char state;	// 00 = off, 255 = On.
-		} __attribute__((packed));
-		unsigned char buff[4];
-		uint32_t val;
-	} mainsnode_datagram_t;
 
-#define mainsnode_datagram_valid_hdr(x) ((x)[0] == MAINSNODE_HDR)
+// On the wire packet structure of the v2.00 packets.
+//
+typedef struct __attribute__((__packed__)) mainsnode_datagram {
+  union {
+    uint8_t raw8[4];
+    uint32_t raw32;
+    struct {
+	uint8_t payload[3];
+        uint8_t crc;
+    } raw;
+    struct {
+      union {
+        struct {
+          uint8_t id8_high; // high is sent first; then the low.
+          uint8_t id8_low;
+        };
+        uint16_t id16; // in network order
+      };
+      uint8_t state;
+      uint8_t crc;
+    };
+  };
+} mainsnode_datagram_t;
+
+typedef enum {
+  MAINSNODE_STATE_OFF = 0x00,
+  MAINSNODE_STATE_ON = 0xFF,
+} messages_t;
 #endif
