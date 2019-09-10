@@ -9,8 +9,8 @@
 #include <strings.h>
 #include "mainsnode.h"
 
-// The ESP32 standard CRC16 seems to be the CIIT type; while the
-// AVR crc16 sees to be 0xA001.
+// The ESP32 standard CRC16 seems to use the CIIT polynomial (0x8408); while the
+// AVR crc16 sees to be 0xA001 (both in reversed notation).
 //
 static unsigned int crc16_update(unsigned int crc, unsigned char a)
 {
@@ -43,17 +43,19 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
     if (duration == 0)
       break;
 
-    // can be done much tighter.
+    // Still enough bits left to form a full datagram ?
+    // If not - abort. Todo: can be done much tighter..
+    //
     if (n_items - i < 30 - bits_read)
       break;
 
     switch(state) {
 	case SEEK:
-      	  if (duration > _shortPulseTicks * 3 && level == 1)
+      	  if (duration > _shortPulseTicks && level == 1)
 		state = LONGS;
           break;
         case LONGS: 
-      	  if (duration > _shortPulseTicks * 3 && level == 0) {
+      	  if (duration > _shortPulseTicks  && level == 0) {
 		state = READING; 
                 bits_read = 0;
 	  } else {
@@ -64,8 +66,10 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
            out[bits_read / 8] |= (level ? 0 : 1) << (7 - (bits_read & 7));
            bits_read++;
 
+           // Skip over the next short.
+	   //
            int nxtduration = (i % 2) ? items[i >> 1].duration1 : items[i >> 1].duration0;
-           if (nxtduration < _shortPulseTicks * 3) 
+           if (nxtduration < _shortPulseTicks) 
               i++;
 
            if (bits_read == 32) {
@@ -77,6 +81,9 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
 
               if (crc == msg->raw.crc)
 		_callback(msg);
+#if 1
+	      else { static int i = 0; if (i++ < 5) Serial.printf("Bad CRC 0x%x 0x%x on 0x%x\n", crc, msg->raw.crc, msg->raw32); };
+#endif
               state = SEEK;
            };
 	   break;
@@ -92,15 +99,20 @@ extern "C" void receive_data(uint32_t *data, size_t len)
   _hidden_global->process((rmt_data_t*)data, len);
 }
 
-void MainSensorReceiver::setup()
+void MainSensorReceiver::setup(uint32_t shortPulseMicroSeconds)
 {
+  assert(_hidden_global == NULL);
   _hidden_global = this;
-  rmt_recv = rmtInit(_pin, false, RMT_MEM_256);
 
+  if (shortPulseMicroSeconds)
+	_shortPulseMicroSeconds = shortPulseMicroSeconds;
+
+  rmt_recv = rmtInit(_pin, false, RMT_MEM_256);
   // about 32 ticks for a short pulse. To get some meaningful resolution. 
   // 
   _realTickNanoSeconds = rmtSetTick(rmt_recv, _shortPulseMicroSeconds * 1000 / 32 /* nano Seconds */);
   _shortPulseTicks = 1000 * _shortPulseMicroSeconds / _realTickNanoSeconds;
+  _discriminatorTicks = _shortPulseTicks * 3;
 
   // Well larger than _delay_us(HALFBITTIME);
   uint32_t minTicks = (_shortPulseMicroSeconds * 1000. / 2) / _realTickNanoSeconds - 1;

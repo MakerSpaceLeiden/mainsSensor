@@ -23,8 +23,10 @@ class MainSensorReceiver {
       _shortPulseMicroSeconds(shortPulseMicroSeconds)
     {
     }
+    void setCallback(msr_callback_t cb) { _callback = cb; };
     void setRawcb(msr_raw_callback_t cb) { _rawcb = cb; };
-    void setup();
+
+    void setup(uint32_t shortPulseMicroSeconds = 0);
     void begin(); 
     void end();
 
@@ -34,11 +36,11 @@ class MainSensorReceiver {
     void process(rmt_data_t * items, size_t len);
   private:
     gpio_num_t _pin;
-    msr_callback_t _callback;
-    uint32_t _shortPulseMicroSeconds, _shortPulseTicks;
+    msr_callback_t _callback = NULL;
+    msr_raw_callback_t _rawcb = NULL;
+    uint32_t _shortPulseMicroSeconds, _shortPulseTicks, _discriminatorTicks;
     float _realTickNanoSeconds;
     rmt_obj_t* rmt_recv = NULL;
-    msr_raw_callback_t _rawcb = NULL;
 };
 
 #endif

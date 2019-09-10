@@ -5,20 +5,7 @@
 
 #include <mainsSensor.h>
 
-MainSensorReceiver msr = MainSensorReceiver(
-                           GPIO_INPUT_PIN,
-[](mainsnode_datagram_t * node) {
-  switch (node->state) {
-    case MAINSNODE_STATE_ON:
-      Serial.printf("Node %04x is on", node->id16);
-      break;
-    case MAINSNODE_STATE_OFF:
-      Serial.printf("Node %04x is OFF", node->id16);
-      break;
-    default:
-      Serial.printf("Node %04x sent a value I do not understand.", node->id16);
-  }
-});
+MainSensorReceiver msr = MainSensorReceiver(GPIO_INPUT_PIN);
 
 void setup() {
   Serial.begin(115200);
@@ -26,7 +13,20 @@ void setup() {
   Serial.println("Started" __FILE__" / " __DATE__ " / " __TIME__ );
 
   pinMode(GPIO_INPUT_PIN, INPUT);
-  msr.setup();
+  msr.setup(350 /* 350 milli seconds for a half bit */);
+  msr.setCallback([](mainsnode_datagram_t * node) {
+    switch (node->state) {
+      case MAINSNODE_STATE_ON:
+        Serial.printf("Node %04x is on", node->id16);
+        break;
+      case MAINSNODE_STATE_OFF:
+        Serial.printf("Node %04x is OFF", node->id16);
+        break;
+      default:
+        Serial.printf("Node %04x sent a value I do not understand.", node->id16);
+    }
+  });
+
   msr.begin();
 #if 0
   msr.setRawcb([](rmt_data_t * items, size_t len) {
