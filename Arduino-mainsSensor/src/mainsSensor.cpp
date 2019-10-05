@@ -9,6 +9,8 @@
 #include <strings.h>
 #include "mainsnode.h"
 
+#define OLD_STYLE 1
+
 static uint8_t
 _crc8_ccitt_update (uint8_t inCrc, uint8_t inData)
 {
@@ -49,7 +51,7 @@ static void _dump(rmt_data_t* items, size_t n_items, int _halfBitTicks, float _r
     }
     Serial.printf("%d",duration);
 
-    char c = level ? '_' : '-';
+    char c = level ? '-' : '_';
     if (duration < _halfBitTicks / 5) {
 	Serial.printf("!");
     } else if (duration < 1.5 * _halfBitTicks) {
@@ -243,6 +245,6 @@ void MainSensorReceiver::end() {
 MainSensorReceiver::~MainSensorReceiver() {
 #ifndef OLD_STYLE
   end();
-#endif
   rmtDeinit(rmt_recv);
+#endif
 }
