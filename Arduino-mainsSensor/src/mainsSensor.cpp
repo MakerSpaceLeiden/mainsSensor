@@ -72,7 +72,7 @@ static void _dump(rmt_data_t* items, size_t n_items, int _halfBitTicks, float _r
 void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
 {
   enum { SEEK, LONGS, READING, RESET } state = SEEK;
-  uint8_t out[32];
+  uint8_t out[32] = { 0,0,0,0 };
   int bits_read = 0;
 
   if (_rawcb)
@@ -123,7 +123,6 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
       case RESET:
           state = SEEK;
           bits_read = 0;
-	  break;
       case SEEK:
         if (duration > 3 * _halfBitTicks && level == 1)
           state = LONGS;
