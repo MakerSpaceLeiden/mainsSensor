@@ -1,7 +1,7 @@
 
-// 433 Mhz radio output pin 'DATA' wired to pin GPIO 5.
+// 433 Mhz radio output pint wired to pin GPIO 13.
 //
-#define GPIO_INPUT_PIN (GPIO_NUM_5)
+#define GPIO_INPUT_PIN (GPIO_NUM_13)
 
 #include <mainsSensor.h>
 
@@ -10,13 +10,10 @@ MainSensorReceiver msr = MainSensorReceiver(GPIO_INPUT_PIN);
 void setup() {
   Serial.begin(115200);
   while (!Serial) {};
-  delay(250);
-
   Serial.println("Started" __FILE__" / " __DATE__ " / " __TIME__ );
 
   pinMode(GPIO_INPUT_PIN, INPUT);
-  msr.setup(200 /* 200 micro seconds for a half bit */);
-
+  msr.setup(350 /* 350 milli seconds for a half bit */);
   msr.setCallback([](mainsnode_datagram_t * node) {
     switch (node->state) {
       case MAINSNODE_STATE_ON:
