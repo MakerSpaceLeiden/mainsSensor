@@ -137,7 +137,7 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
         };
         break;
       case READING:
-        out[bits_read / 8] |= (level ? 0 : 1) << (7 - (bits_read & 7));
+        out[bits_read / 8] |= (level ? 1 : 0) << (7 - (bits_read & 7));
         bits_read++;
 
         // Skip over the next short.
@@ -159,6 +159,7 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
                           n_items, i, bits_read);
 #endif
             _callback(msg);
+	    return;
           }
 #if 1
           else {
@@ -173,6 +174,7 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
         break;
     };
   };
+  Serial.printf("N-%d\n", bits_read);
   return;
 }
 

@@ -4,6 +4,7 @@
 #define GPIO_INPUT_PIN (GPIO_NUM_5)
 
 #include <mainsSensor.h>
+#include <lwip/def.h> // for htons()
 
 MainSensorReceiver msr = MainSensorReceiver(GPIO_INPUT_PIN);
 
@@ -20,10 +21,10 @@ void setup() {
   msr.setCallback([](mainsnode_datagram_t * node) {
     switch (node->state) {
       case MAINSNODE_STATE_ON:
-        Serial.printf("Node %04x is on", node->id16);
+        Serial.printf("Node %04x is on", htons(node->id16));
         break;
       case MAINSNODE_STATE_OFF:
-        Serial.printf("Node %04x is OFF", node->id16);
+        Serial.printf("Node %04x is OFF", htons(node->id16));
         break;
       default:
         Serial.printf("Node %04x sent a value I do not understand.", node->id16);
@@ -48,5 +49,6 @@ void setup() {
 
 void loop() {
   Serial.println("tock");
+
   delay(1000); // Sleep 3 seconds between tocks.
 };
