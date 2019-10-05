@@ -35,8 +35,6 @@ _crc8_ccitt_update (uint8_t inCrc, uint8_t inData)
 }
 
 static void _dump(rmt_data_t* items, size_t n_items, int _halfBitTicks, float _realTickNanoSeconds) {
-
-
   int D  = 0;
   int d = 0;
   for (int i = 0; i < 2 * n_items;) {
@@ -73,7 +71,7 @@ static void _dump(rmt_data_t* items, size_t n_items, int _halfBitTicks, float _r
 
 void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
 {
-  enum { SEEK, LONGS, READING } state = SEEK;
+  enum { SEEK, LONGS, READING, RESET } state = SEEK;
   uint8_t out[32];
   int bits_read = 0;
 
@@ -105,8 +103,7 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
     if (duration < _halfBitTicks / 5)
 	continue;
 
-    if (i > 4 && state != READING)
-	break;
+//    if (i > 4 && state != READING) break;
 #if 0
     // Still enough bits left to form a full datagram ?
     // If not - abort. Todo: can be done much tighter..
@@ -123,28 +120,36 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
     // can then begin reading (no need to skip first half bit).
     //
     switch (state) {
+      case RESET:
+          state = SEEK;
+          bits_read = 0;
+	  break;
       case SEEK:
         if (duration > 3 * _halfBitTicks && level == 1)
           state = LONGS;
         break;
       case LONGS:
-        if (duration > 3 * _halfBitTicks && level == 0) {
+        if (duration > 3 * _halfBitTicks  && duration < 5 * _halfBitTicks && level == 0) {
+          // _dump(items, n_items, _halfBitTicks, _realTickNanoSeconds);
           state = READING;
-          bits_read = 0;
-          _dump(items, n_items, _halfBitTicks, _realTickNanoSeconds);
         } else {
-          state = SEEK;
+          state = RESET;
         };
         break;
       case READING:
+        if (duration > 4 * _halfBitTicks) {
+	    state = RESET;
+	    continue;
+	};
         out[bits_read / 8] |= (level ? 1 : 0) << (7 - (bits_read & 7));
         bits_read++;
 
         // Skip over the next short.
         //
         int nxtduration = (i % 2) ? items[i >> 1].duration1 : items[i >> 1].duration0;
-        if (nxtduration < 1.5 * _halfBitTicks)
+        if (nxtduration < 1.5 * _halfBitTicks) {
           i++;
+        };
 
         if (bits_read == 32) {
           mainsnode_datagram_t * msg = (mainsnode_datagram_t *)out;
@@ -154,27 +159,19 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
             crc = _crc8_ccitt_update(crc, msg->raw.payload[k]);
 
           if (crc == msg->raw.crc) {
-#if 1
-            Serial.printf("Valid packet; n_items=%d, i=%d, bits_read=%d\n",
-                          n_items, i, bits_read);
-#endif
             _callback(msg);
 	    return;
           }
 #if 1
-          else {
-            static int i = 0;
-            if (i++ < 5)
-              Serial.printf("Bad CRC 0x%x != 0x%x on MSG: 0x%x\n",
+           Serial.printf("Bad CRC 0x%x != 0x%x on MSG: 0x%x\n",
                             crc, msg->raw.crc, msg->raw32);
-          }
 #endif
-          state = SEEK;
+          state = RESET;
+	  continue;
         };
         break;
     };
   };
-  Serial.printf("N-%d\n", bits_read);
   return;
 }
 
