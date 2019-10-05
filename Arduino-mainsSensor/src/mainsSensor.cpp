@@ -21,27 +21,27 @@ static void _dump(rmt_data_t* items, size_t n_items, int _halfBitTicks, float _r
     i++;
 
     if (duration == 0) {
-	Serial.println(".");
-        Serial.printf("Halfbit ticks = %d, %f\n", D/d, 1. * D/d/_halfBitTicks);
-	return;
+      Serial.println(".");
+      Serial.printf("Halfbit ticks = %d, %f\n", D / d, 1. * D / d / _halfBitTicks);
+      return;
     }
-    Serial.printf("%d",duration);
+    Serial.printf("%d", duration);
 
     char c = level ? '-' : '_';
     if (duration < _halfBitTicks / 5) {
-	Serial.printf("!");
+      Serial.printf("!");
     } else if (duration < 1.5 * _halfBitTicks) {
-	Serial.printf("%c.",c);
-        d += 1; D+=duration;
+      Serial.printf("%c.", c);
+      d += 1; D += duration;
     } else if (duration > 3 * _halfBitTicks) {
-	Serial.printf("%c%c%c%c.",c,c,c,c);
-        d += 4; D+=duration;
+      Serial.printf("%c%c%c%c.", c, c, c, c);
+      d += 4; D += duration;
     } else if (duration > 1.5 * _halfBitTicks) {
-	Serial.printf("%c%c.",c,c);
-        d += 2; D+=duration;
+      Serial.printf("%c%c.", c, c);
+      d += 2; D += duration;
     } else {
-	Serial.printf("%c?.",c);
-        d = 0;
+      Serial.printf("%c?.", c);
+      d = 0;
     };
   }
   Serial.println("<nol>");
@@ -50,14 +50,14 @@ static void _dump(rmt_data_t* items, size_t n_items, int _halfBitTicks, float _r
 void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
 {
   enum { SEEK, LONGS, READING, RESET } state = SEEK;
-  uint8_t out[32] = { 0,0,0,0 };
+  uint8_t out[32] = { 0, 0, 0, 0 };
   int bits_read = 0;
 
   if (_rawcb)
     _rawcb(items, n_items);
 
-  if (n_items < 22)  
-	return;
+  if (n_items < 22)
+    return;
 
   for (int i = 0; i < 2 * n_items;) {
     int duration = (i % 2) ? items[i >> 1].duration1 : items[i >> 1].duration0;
@@ -68,16 +68,16 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
       break;
 
     if (duration < _halfBitTicks / 5)
-	continue;
+      continue;
 
     // SKEE for a long high followed by a LONGS low; we
     // can then begin reading (no need to skip first half bit).
     //
     switch (state) {
       case RESET:
-          state = SEEK;
-          bits_read = 0;
-	  /* NO break */
+        state = SEEK;
+        bits_read = 0;
+      /* NO break */
       case SEEK:
         if (duration > 3 * _halfBitTicks && level == 1)
           state = LONGS;
@@ -92,9 +92,9 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
         break;
       case READING:
         if (duration > 4 * _halfBitTicks) {
-	    state = RESET;
-	    continue;
-	};
+          state = RESET;
+          continue;
+        };
         out[bits_read / 8] |= (level ? 1 : 0) << (7 - (bits_read & 7));
         bits_read++;
 
@@ -105,14 +105,14 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
 
           if (crc == msg->raw.crc) {
             _callback(msg);
-	    return;
+            return;
           }
 #if MS_DEBUG
-           Serial.printf("Bad CRC 0x%x != 0x%x on MSG: 0x%x\n",
-                            crc, msg->raw.crc, msg->raw32);
+          Serial.printf("Bad CRC 0x%x != 0x%x on MSG: 0x%x\n",
+                        crc, msg->raw.crc, msg->raw32);
 #endif
           state = RESET;
-	  break;
+          break;
         };
 
         // Skip over the next short.

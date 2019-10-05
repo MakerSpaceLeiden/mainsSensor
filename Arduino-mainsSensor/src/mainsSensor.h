@@ -24,15 +24,21 @@ class MainSensorReceiver {
     {
     }
     ~MainSensorReceiver();
-    
-    void setCallback(msr_callback_t cb) { _callback = cb; };
-    void setRawcb(msr_raw_callback_t cb) { _rawcb = cb; };
+
+    void setCallback(msr_callback_t cb) {
+      _callback = cb;
+    };
+    void setRawcb(msr_raw_callback_t cb) {
+      _rawcb = cb;
+    };
 
     void setup(uint32_t halfBitMicroSeconds = 0);
-    void begin(); 
+    void begin();
     void end();
 
-    float nanoseconds(uint32_t ticks) { return ticks * _realTickNanoSeconds; };
+    float nanoseconds(uint32_t ticks) {
+      return ticks * _realTickNanoSeconds;
+    };
 
     // Glue -- not quite public.
     void process(rmt_data_t * items, size_t len);

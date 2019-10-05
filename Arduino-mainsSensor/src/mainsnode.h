@@ -20,8 +20,8 @@ typedef struct __attribute__((__packed__)) mainsnode_datagram {
       uint8_t payload[3];
       uint8_t crc; // _crc8_ccitt_update
     } raw;
-    
-  // unpacked - as how it should be decoded.
+
+    // unpacked - as how it should be decoded.
     struct {
       union {
         struct {
