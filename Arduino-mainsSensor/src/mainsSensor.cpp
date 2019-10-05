@@ -1,6 +1,7 @@
 #include "driver/rmt.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
+#include <rom/crc.h>
 
 #include "Arduino.h"
 
@@ -9,30 +10,7 @@
 #include <strings.h>
 #include "mainsnode.h"
 
-#define OLD_STYLE 1
-
-static uint8_t
-_crc8_ccitt_update (uint8_t inCrc, uint8_t inData)
-{
-    uint8_t   i;
-    uint8_t   data;
-
-    data = inCrc ^ inData;
-
-    for ( i = 0; i < 8; i++ )
-    {
-        if (( data & 0x80 ) != 0 )
-        {
-            data <<= 1;
-            data ^= 0x07;
-        }
-        else
-        {
-            data <<= 1;
-        }
-    }
-    return data;
-}
+#include "avr-crc8.h"
 
 static void _dump(rmt_data_t* items, size_t n_items, int _halfBitTicks, float _realTickNanoSeconds) {
   int D  = 0;
@@ -78,20 +56,9 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
   if (_rawcb)
     _rawcb(items, n_items);
 
-#if 0
-  int j = 0;
-  for (int i = 0; i < n_items; i++) {
-	if (items[i].duration0 == 0)
-		break;
-	j++;
-	if (items[i].duration1 == 0)
-		break;
-	j++;
-  };
-  Serial.printf("Rec: %d\n", j);
-#endif
-  
-   
+  if (n_items < 22)  
+	return;
+
   for (int i = 0; i < 2 * n_items;) {
     int duration = (i % 2) ? items[i >> 1].duration1 : items[i >> 1].duration0;
     int level =   ((i % 2) ? items[i >> 1].level1    : items[i >> 1].level0) ? 1 : 0;
@@ -103,19 +70,6 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
     if (duration < _halfBitTicks / 5)
 	continue;
 
-//    if (i > 4 && state != READING) break;
-#if 0
-    // Still enough bits left to form a full datagram ?
-    // If not - abort. Todo: can be done much tighter..
-    //
-    if (2*n_items - i < 30 - bits_read) {
-#if 1
-      Serial.printf("Early abort - n=%d, not enough bytes %d<%d\n", n_items, 2*n_items - i , 30 - bits_read);
-      break;
-#endif
-    }
-#endif
-
     // SKEE for a long high followed by a LONGS low; we
     // can then begin reading (no need to skip first half bit).
     //
@@ -123,6 +77,7 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
       case RESET:
           state = SEEK;
           bits_read = 0;
+	  /* NO break */
       case SEEK:
         if (duration > 3 * _halfBitTicks && level == 1)
           state = LONGS;
@@ -143,30 +98,28 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
         out[bits_read / 8] |= (level ? 1 : 0) << (7 - (bits_read & 7));
         bits_read++;
 
-        // Skip over the next short.
-        //
-        int nxtduration = (i % 2) ? items[i >> 1].duration1 : items[i >> 1].duration0;
-        if (nxtduration < 1.5 * _halfBitTicks) {
-          i++;
-        };
 
         if (bits_read == 32) {
           mainsnode_datagram_t * msg = (mainsnode_datagram_t *)out;
-
-          uint8_t crc = 0;
-          for (int k = 0; k < sizeof(msg->raw.payload); k++)
-            crc = _crc8_ccitt_update(crc, msg->raw.payload[k]);
+          uint8_t crc = avr_crc8_ccitt(msg->raw.payload, sizeof(msg->raw.payload));
 
           if (crc == msg->raw.crc) {
             _callback(msg);
 	    return;
           }
-#if 1
+#if MS_DEBUG
            Serial.printf("Bad CRC 0x%x != 0x%x on MSG: 0x%x\n",
                             crc, msg->raw.crc, msg->raw32);
 #endif
           state = RESET;
-	  continue;
+	  break;
+        };
+
+        // Skip over the next short.
+        //
+        int nxtduration = (i % 2) ? items[i >> 1].duration1 : items[i >> 1].duration0;
+        if (nxtduration < 1.5 * _halfBitTicks) {
+          i++;
         };
         break;
     };
@@ -214,7 +167,7 @@ void MainSensorReceiver::setup(uint32_t halfBitMicroSeconds)
   uint32_t maxTicks = (_halfBitMicroSeconds * 1000. * 6) / _realTickNanoSeconds + 1;
   rmtSetRxThreshold(rmt_recv, maxTicks);
 
-#if 1
+#if MS_DEBUG
   Serial.printf("half bit:  %12d   microSeconds\n", _halfBitMicroSeconds);
   Serial.printf("           %12.1f nanoSeconds\n", 1000. * _halfBitMicroSeconds);
   Serial.printf("Tick:      %12.1f nanoSeconds\n", _realTickNanoSeconds);

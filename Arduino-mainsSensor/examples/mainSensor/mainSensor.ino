@@ -8,7 +8,6 @@
 
 MainSensorReceiver msr = MainSensorReceiver(GPIO_INPUT_PIN);
 
-
 void setup() {
   Serial.begin(115200);
   while (!Serial) {};
@@ -20,7 +19,11 @@ void setup() {
   msr.setup(200 /* 200 micro seconds for a half bit */);
 
   msr.setCallback([](mainsnode_datagram_t * node) {
-    Serial.printf("min: %06lu: ", millis() / 1000 / 60);
+    static int ok = 0;
+    unsigned long secs = 1+millis() / 1000;
+    ok++;
+    Serial.printf("%06lu:%02lu:%02lu %4.1f%% :\t",
+                  secs / 3600, (secs / 60) % 60, secs % 60,  ok * 100. / secs);
 
     switch (node->state) {
       case MAINSNODE_STATE_ON:
