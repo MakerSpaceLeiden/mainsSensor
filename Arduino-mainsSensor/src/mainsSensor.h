@@ -15,7 +15,7 @@ class MainSensorReceiver {
     typedef std::function<void(mainsnode_datagram_t * dgram)> msr_callback_t;
     typedef std::function<void(rmt_data_t * items, size_t len)> msr_raw_callback_t;
 
-    typedef struct { unsigned long lastReported, lastChanged; messages_t state; } record_t;
+    typedef struct { unsigned long lastReported, lastChanged; mainsnode_datagram_t msg; } record_t;
 
     MainSensorReceiver(
       gpio_num_t pin,

@@ -15,7 +15,7 @@
 
 #include "avr-crc8.h"
 
-#define OLD_STYLE 1
+// #define OLD_STYLE 1
 #define MS_DEBUG 1
 
 static void _dump(rmt_data_t* items, size_t n_items, int _halfBitTicks, float _realTickNanoSeconds) {
@@ -55,7 +55,7 @@ static void _dump(rmt_data_t* items, size_t n_items, int _halfBitTicks, float _r
 
 void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
 {
-  enum { SEEK, LONGS, READING, RESET } state = SEEK;
+  enum { SEEK, LONGS, READING, RESET } s = SEEK;
   uint8_t out[32] = { 0, 0, 0, 0 };
   int bits_read = 0;
 
@@ -79,26 +79,26 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
     // SKEE for a long high followed by a LONGS low; we
     // can then begin reading (no need to skip first half bit).
     //
-    switch (state) {
+    switch (s) {
       case RESET:
-        state = SEEK;
+        s = SEEK;
         bits_read = 0;
       /* NO break */
       case SEEK:
         if (duration > 3 * _halfBitTicks && level == 1)
-          state = LONGS;
+          s = LONGS;
         break;
       case LONGS:
         if (duration > 3 * _halfBitTicks  && duration < 5 * _halfBitTicks && level == 0) {
           // _dump(items, n_items, _halfBitTicks, _realTickNanoSeconds);
-          state = READING;
+          s = READING;
         } else {
-          state = RESET;
+          s = RESET;
         };
         break;
       case READING:
         if (duration > 4 * _halfBitTicks) {
-          state = RESET;
+          s = RESET;
           continue;
         };
         out[bits_read / 8] |= (level ? 1 : 0) << (7 - (bits_read & 7));
@@ -127,14 +127,14 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
 
              portEXIT_CRITICAL_ISR(&queueMux);
 
-             state = RESET;
+             s = RESET;
              break;
           }
 #if MS_DEBUG
           Serial.printf("Bad CRC 0x%x != 0x%x on MSG: 0x%x\n",
                         crc, msg->raw.crc, msg->raw32);
 #endif
-          state = RESET;
+          s = RESET;
           break;
         };
 
@@ -158,16 +158,20 @@ static void _aggregator_ticker(void *arg)
 
 void MainSensorReceiver::aggregate() {
        std::list<mainsnode_datagram_t> lst = {};
-
         portENTER_CRITICAL_ISR(&queueMux);
 
-        for(mainsnode_datagram_t s : state) {
-		if (millis() - s.lastChange > maxAge) {
-			s.lastChanged = millis();
-			s.msg.state = MAINSNODE_STATE_DEAD;
+        for(auto i : state) {
+                record_t rec = i.second;
+                if (MAINSNODE_STATE_DEAD == rec.msg.state)
+			continue;
+		if (millis() - rec.lastChanged > maxAge) {
+			rec.lastChanged = millis();
+			rec.msg.state = MAINSNODE_STATE_DEAD;
+                        state[ i.first ] = rec;
 		};
-                if (s.lastChanged - lastAggregation > 0)
-			lst.push_back(s,msg);
+		if ((int64_t)rec.lastChanged - lastAggregation>0) {
+			lst.push_back(rec.msg);
+		};
 	};
 
         portEXIT_CRITICAL_ISR(&queueMux);
@@ -175,8 +179,8 @@ void MainSensorReceiver::aggregate() {
 	lastAggregation = millis();
 
  	if (_callback)
-		for (mainsnode_datagram_t msg : l) {
-			_callback(msg);
+		for (mainsnode_datagram_t msg : lst) 
+			_callback(&msg);
 };
 
 // extern "C" -- trapoline back to c++.

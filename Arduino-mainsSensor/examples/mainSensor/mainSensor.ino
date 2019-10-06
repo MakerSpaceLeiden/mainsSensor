@@ -32,6 +32,9 @@ void setup() {
       case MAINSNODE_STATE_OFF:
         Serial.printf("Node %04x is OFF\n", htons(node->id16));
         break;
+      case MAINSNODE_STATE_DEAD:
+        Serial.printf("Node %04x has gone off air\n", htons(node->id16));
+        break;
       default:
         Serial.printf("Node %04x sent a value %x I do not understand.\n", htons(node->id16), node->state);
     }
@@ -55,5 +58,5 @@ void setup() {
 
 void loop() {
   Serial.println("tock");
-  delay(3 * 1000); // Sleep 3 seconds between tocks.
+  delay(30 * 1000); // Sleep 30 seconds between tocks.
 };

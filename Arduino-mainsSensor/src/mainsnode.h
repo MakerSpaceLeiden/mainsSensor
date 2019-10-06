@@ -1,7 +1,7 @@
 #ifndef _H_MAINSNODE
 #define _H_MAINSNODE
 
-#define MAINSNODE_MAXAGE (15 * 60) // Expect a report at least every 15 minutes.
+#define MAINSNODE_MAXAGE (15 * 60 * 1000) // Expect a report at least every 15 minutes.
 
 // We force our enum into a byte - as it is also used
 // at protocol level.
