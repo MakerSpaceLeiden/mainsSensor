@@ -54,6 +54,6 @@ void setup() {
 };
 
 void loop() {
-  // Serial.println("tock");
-  delay(1000); // Sleep 3 seconds between tocks.
+  Serial.println("tock");
+  delay(3 * 1000); // Sleep 3 seconds between tocks.
 };

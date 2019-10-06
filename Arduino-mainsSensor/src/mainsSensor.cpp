@@ -2,6 +2,7 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include <rom/crc.h>
+#include <lwip/def.h> // for htons()
 
 #include "Arduino.h"
 
@@ -11,6 +12,9 @@
 #include "mainsnode.h"
 
 #include "avr-crc8.h"
+
+#define OLD_STYLE 1
+#define MS_DEBUG 1
 
 static void _dump(rmt_data_t* items, size_t n_items, int _halfBitTicks, float _realTickNanoSeconds) {
   int D  = 0;
@@ -104,7 +108,17 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
           uint8_t crc = avr_crc8_ccitt(msg->raw.payload, sizeof(msg->raw.payload));
 
           if (crc == msg->raw.crc) {
-            _callback(msg);
+             portENTER_CRITICAL_ISR(&queueMux);
+	     if (nQueued >= maxQueue) {
+		for(int i =0; i < maxQueue-1; i++)
+                   queue[ i ] = queue[ i+ 1 ];
+		   nQueued = maxQueue-1;
+	     };
+             queue[ nQueued ] = *msg;
+             nQueued++;
+             portEXIT_CRITICAL_ISR(&queueMux);
+
+	     //_callback(msg);
             return;
           }
 #if MS_DEBUG
@@ -127,12 +141,59 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
   return;
 }
 
-#ifdef OLD_STYLE
-static MainSensorReceiver * _hidden_global = NULL;
-#endif
+// extern "C" -- trapoline back to c++.
+static void _aggregator_ticker(void *arg)
+{
+  ((MainSensorReceiver *)arg)->aggregate();
+}
+
+void MainSensorReceiver::aggregate() {
+	if (nQueued == 0)
+		return;
+
+        mainsnode_datagram_t tmp[ maxQueue ];
+
+        portENTER_CRITICAL_ISR(&queueMux);
+        for(int i = 0; i < nQueued; i ++)
+		tmp[i] = queue[i];
+        int n  = nQueued;
+	nQueued = 0;
+        portEXIT_CRITICAL_ISR(&queueMux);
+
+	for(int i = 0; i < n; i++) {
+                // Skip if we have later reports.
+                int skip = 0;
+		for(int j = i+1; j < n; j++) 
+		   if (tmp[i].id16 == tmp[j].id16) {
+			skip = 1;
+			break;
+		   };
+                if (skip) continue;
+
+                unsigned short id = htons(tmp[i].id16);
+		std::unordered_map<unsigned short, record_t>::const_iterator got = state.find(id);
+//                auto got = state.find( id );
+
+                record_t rec;
+                if (got != state.end()) {
+                   rec = got->second;
+		}
+                else
+                   rec = { millis(), millis(), tmp[i].state };
+
+                rec.lastReported = millis();
+                if (rec.state != tmp[i].state) {
+                       rec.lastChanged = millis();
+ 			if (_callback)
+	             		_callback(tmp);
+		}
+		state[ id ] = rec;
+         };
+};
 
 // extern "C" -- trapoline back to c++.
 #ifdef OLD_STYLE
+static MainSensorReceiver * _hidden_global = NULL;
 static void _receive_data(uint32_t *data, size_t len)
 {
   _hidden_global->process((rmt_data_t*)data, len);
@@ -183,6 +244,7 @@ void MainSensorReceiver::begin() {
 #else
   rmtRead(rmt_recv, _receive_data, this);
 #endif
+  aggregator.attach_ms(500, _aggregator_ticker, (void *)this);   
 }
 
 void MainSensorReceiver::end() {
@@ -191,6 +253,7 @@ void MainSensorReceiver::end() {
 #else
   rmtEnd(rmt_recv);
 #endif
+  aggregator.detach();
 };
 
 MainSensorReceiver::~MainSensorReceiver() {

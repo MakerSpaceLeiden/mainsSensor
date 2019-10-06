@@ -2,7 +2,7 @@
 
 #if 1
 // *we have enough memory
-/* The build in crc8_be/le() do not use the same seed/polynomial.
+/* The ESP build in crc8_be/le() do not use the same seed/polynomial.
 */
 static const uint8_t CRC_TABLE[256] = {
   0x00, 0x07, 0x0E, 0x09, 0x1C, 0x1B, 0x12, 0x15,
@@ -39,8 +39,7 @@ static const uint8_t CRC_TABLE[256] = {
   0xE6, 0xE1, 0xE8, 0xEF, 0xFA, 0xFD, 0xF4, 0xF3
 };
 
-uint8_t
-avr_crc8_ccitt(uint8_t * data, size_t len) {
+uint8_t avr_crc8_ccitt(uint8_t * data, size_t len) {
   uint8_t crc = 0;
   while (len--) {
     crc = CRC_TABLE[ crc ^ *data++ ];
@@ -48,8 +47,8 @@ avr_crc8_ccitt(uint8_t * data, size_t len) {
   return crc;
 }
 #else
-uint8_t
-avr_crc8_ccitt(uint8_t * data, size_t len) {
+// more CPU intensive, less memory using version.
+uint8_t avr_crc8_ccitt(uint8_t * data, size_t len) {
   uint8_t crc = 0;
   while (len--) {
     crc = crc ^ *data++;
