@@ -9,6 +9,8 @@
 #include "mainsSensor.h"
 
 #include <strings.h>
+#include <list>
+
 #include "mainsnode.h"
 
 #include "avr-crc8.h"
@@ -109,17 +111,24 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
 
           if (crc == msg->raw.crc) {
              portENTER_CRITICAL_ISR(&queueMux);
-	     if (nQueued >= maxQueue) {
-		for(int i =0; i < maxQueue-1; i++)
-                   queue[ i ] = queue[ i+ 1 ];
-		   nQueued = maxQueue-1;
-	     };
-             queue[ nQueued ] = *msg;
-             nQueued++;
+
+	     std::unordered_map<unsigned short, record_t>::const_iterator got = state.find(msg->id16);
+
+             record_t rec;
+             if (got != state.end()) {
+                   rec = got->second;
+              	   rec.lastReported = millis();
+             	   if (rec.msg.state != msg->state) 
+                       rec.lastChanged = millis();
+	     } else {
+                   rec = { millis(), millis(), *msg };
+             };
+	     state[ msg->id16 ] = rec;
+
              portEXIT_CRITICAL_ISR(&queueMux);
 
-	     //_callback(msg);
-            return;
+             state = RESET;
+             break;
           }
 #if MS_DEBUG
           Serial.printf("Bad CRC 0x%x != 0x%x on MSG: 0x%x\n",
@@ -148,47 +157,26 @@ static void _aggregator_ticker(void *arg)
 }
 
 void MainSensorReceiver::aggregate() {
-	if (nQueued == 0)
-		return;
-
-        mainsnode_datagram_t tmp[ maxQueue ];
+       std::list<mainsnode_datagram_t> lst = {};
 
         portENTER_CRITICAL_ISR(&queueMux);
-        for(int i = 0; i < nQueued; i ++)
-		tmp[i] = queue[i];
-        int n  = nQueued;
-	nQueued = 0;
+
+        for(mainsnode_datagram_t s : state) {
+		if (millis() - s.lastChange > maxAge) {
+			s.lastChanged = millis();
+			s.msg.state = MAINSNODE_STATE_DEAD;
+		};
+                if (s.lastChanged - lastAggregation > 0)
+			lst.push_back(s,msg);
+	};
+
         portEXIT_CRITICAL_ISR(&queueMux);
 
-	for(int i = 0; i < n; i++) {
-                // Skip if we have later reports.
-                int skip = 0;
-		for(int j = i+1; j < n; j++) 
-		   if (tmp[i].id16 == tmp[j].id16) {
-			skip = 1;
-			break;
-		   };
-                if (skip) continue;
+	lastAggregation = millis();
 
-                unsigned short id = htons(tmp[i].id16);
-		std::unordered_map<unsigned short, record_t>::const_iterator got = state.find(id);
-//                auto got = state.find( id );
-
-                record_t rec;
-                if (got != state.end()) {
-                   rec = got->second;
-		}
-                else
-                   rec = { millis(), millis(), tmp[i].state };
-
-                rec.lastReported = millis();
-                if (rec.state != tmp[i].state) {
-                       rec.lastChanged = millis();
- 			if (_callback)
-	             		_callback(tmp);
-		}
-		state[ id ] = rec;
-         };
+ 	if (_callback)
+		for (mainsnode_datagram_t msg : l) {
+			_callback(msg);
 };
 
 // extern "C" -- trapoline back to c++.

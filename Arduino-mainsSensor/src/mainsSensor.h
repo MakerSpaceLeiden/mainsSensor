@@ -55,15 +55,12 @@ class MainSensorReceiver {
     float _realTickNanoSeconds;
     rmt_obj_t* rmt_recv = NULL;
 
-    // Queue onto which we put up to N datagrams; to be
-    // aggregated every 200-300 milli second or so.
-    const int maxQueue = 16;
-    mainsnode_datagram_t queue[ 16 ];
-    int nQueued = 0;
     portMUX_TYPE queueMux = portMUX_INITIALIZER_UNLOCKED;
 
     // Keep a table of all known nodes and their state.
     Ticker aggregator;
     std::unordered_map<unsigned short, record_t> state;
+    unsigned long lastAggregation;
+    unsigned long maxAge = MAINSNODE_MAXAGE;
 };
 #endif

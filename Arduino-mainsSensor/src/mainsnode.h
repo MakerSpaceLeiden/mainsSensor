@@ -1,11 +1,14 @@
 #ifndef _H_MAINSNODE
 #define _H_MAINSNODE
 
+#define MAINSNODE_MAXAGE (15 * 60) // Expect a report at least every 15 minutes.
+
 // We force our enum into a byte - as it is also used
 // at protocol level.
 //
 typedef enum : byte {
   MAINSNODE_STATE_OFF = 0x00,
+  MAINSNODE_STATE_DEAD = 0x01, // not really sent by nodes - but state once we do not hear for a long time
   MAINSNODE_STATE_ON = 0xFF,
 } messages_t;
 
