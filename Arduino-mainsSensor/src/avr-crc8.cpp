@@ -1,6 +1,6 @@
 #include "avr-crc8.h"
 
-#if 1
+#if 0
 // *we have enough memory
 /* The ESP build in crc8_be/le() do not use the same seed/polynomial.
 */

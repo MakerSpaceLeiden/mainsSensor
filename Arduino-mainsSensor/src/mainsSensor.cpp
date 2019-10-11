@@ -15,7 +15,7 @@
 
 #include "avr-crc8.h"
 
-// #define OLD_STYLE 1
+ #define OLD_STYLE 1
 #define MS_DEBUG 1
 
 static void _dump(rmt_data_t* items, size_t n_items, int _halfBitTicks, float _realTickNanoSeconds) {
@@ -56,7 +56,7 @@ static void _dump(rmt_data_t* items, size_t n_items, int _halfBitTicks, float _r
 void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
 {
   enum { SEEK, LONGS, READING, RESET } s = SEEK;
-  uint8_t out[32] = { 0, 0, 0, 0 };
+  uint8_t out[4] = { 0, 0, 0, 0 };
   int bits_read = 0;
 
   if (_rawcb)
@@ -132,7 +132,7 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
           }
 #if MS_DEBUG
           Serial.printf("Bad CRC 0x%x != 0x%x on MSG: 0x%x\n",
-                        crc, msg->raw.crc, msg->raw32);
+                        crc, msg->raw.crc, htonl(msg->raw32));
 #endif
           s = RESET;
           break;
