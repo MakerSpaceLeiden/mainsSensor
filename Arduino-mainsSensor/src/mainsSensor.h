@@ -42,7 +42,7 @@ class MainSensorReceiver {
       _rawcb = cb;
     };
 
-    void setup(uint32_t halfBitMicroSeconds = 0);
+    void setup(uint32_t halfBitMicroSeconds = 0, uint32_t halfBitPreambleMicroSeconds = 0);
     void begin();
     void end();
     void setCache(bool onOff);
@@ -59,7 +59,7 @@ class MainSensorReceiver {
     gpio_num_t _pin;
     msr_callback_t _callback = NULL;
     msr_raw_callback_t _rawcb = NULL;
-    uint32_t _halfBitMicroSeconds, _halfBitTicks, _discriminatorTicks;
+    uint32_t _halfBitMicroSeconds, _halfBitTicks, _discriminatorTicks, _halfBitPreambleMicroSeconds;
     float _realTickNanoSeconds;
     rmt_obj_t* rmt_recv = NULL;
 

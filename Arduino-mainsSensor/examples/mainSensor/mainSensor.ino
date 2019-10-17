@@ -20,7 +20,7 @@ void setup() {
   // 1600 ok. 1650 ok but fles
   // msr.setup(1000000/1600/2 /* approx 200 micro seconds for a half bit */);
   // 300: ok.
-  msr.setup(338); // and around 250uSec during the pre-amble.
+  msr.setup(338,250);
   msr.setCache(false);
   
   msr.setCallback([](mainsnode_datagram_t * node) {
@@ -66,4 +66,3 @@ void loop() {
   Serial.println("30 s tock");
   delay(30 * 1000); // Sleep 30 seconds between tocks.
 };
-

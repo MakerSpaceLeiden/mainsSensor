@@ -242,7 +242,7 @@ static void _receive_data(uint32_t *data, size_t len, void * arg)
 }
 #endif
 
-void MainSensorReceiver::setup(uint32_t halfBitMicroSeconds)
+void MainSensorReceiver::setup(uint32_t halfBitMicroSeconds, uint32_t halfBitPreambleMicroSeconds)
 {
 #ifdef OLD_STYLE
   _hidden_global = this;
@@ -250,6 +250,7 @@ void MainSensorReceiver::setup(uint32_t halfBitMicroSeconds)
 
   if (halfBitMicroSeconds)
     _halfBitMicroSeconds = halfBitMicroSeconds;
+  _halfBitPreambleMicroSeconds = halfBitPreambleMicroSeconds ? halfBitPreambleMicroSeconds : halfBitMicroSeconds;
 
   rmt_recv = rmtInit(_pin, false, RMT_MEM_256);
   // about 32 ticks for a short pulse. To get some meaningful resolution.
@@ -272,8 +273,8 @@ void MainSensorReceiver::setup(uint32_t halfBitMicroSeconds)
   // Slant towards the bottom of the range; as the halfbits
   // during the data tend to be 60% longer than those in the
   // pre-amble.
-  minPreamble = 2 * _halfBitTicks;
-  maxPreamble = 6 * _halfBitTicks;
+  minPreamble = 3 *  1000 * _halfBitPreambleMicroSeconds / _realTickNanoSeconds;
+  maxPreamble = 5 *  1000 * _halfBitPreambleMicroSeconds / _realTickNanoSeconds;
 
 #define off (0.5) /* 25 % */
   minShort =  (1.-off) * _halfBitTicks;
@@ -286,8 +287,8 @@ void MainSensorReceiver::setup(uint32_t halfBitMicroSeconds)
   Serial.printf("           %12.1f  nanoSeconds\n", 1000. * _halfBitMicroSeconds);
   Serial.printf("Tick:      %12.1f nanoSeconds\n", _realTickNanoSeconds);
   Serial.printf("halfbit:   %12u   #\n", _halfBitTicks);
-  Serial.printf("min:       %12u   #\n", minTicks);
-  Serial.printf("max:       %12u   #\n", maxTicks);
+  Serial.printf("min:       %12u #\n", minTicks);
+  Serial.printf("max:       %12u #\n", maxTicks);
 #endif
 };
 
