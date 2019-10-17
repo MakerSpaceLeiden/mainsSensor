@@ -15,9 +15,12 @@
 
 #include "avr-crc8.h"
 
- #define OLD_STYLE 1
+// See:  https://github.com/espressif/arduino-esp32/pull/3345
+// #define OLD_STYLE 1
+
 #define MS_DEBUG 1
 
+#ifdef MS_FULL_DEBUG
 static void _dump(rmt_data_t* items, size_t n_items, int _halfBitTicks, float _realTickNanoSeconds) {
   int D  = 0;
   int d = 0;
@@ -52,12 +55,14 @@ static void _dump(rmt_data_t* items, size_t n_items, int _halfBitTicks, float _r
   }
   Serial.println("<nol>");
 };
+#endif
 
 void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
 {
   enum { SEEK, LONGS, READING, RESET } s = SEEK;
   uint8_t out[4] = { 0, 0, 0, 0 };
   int bits_read = 0;
+  double lt = 0, f1 = 0 , f2 = 0, mi = 5 * _halfBitMicroSeconds, ma = 0;
 
   if (_rawcb)
     _rawcb(items, n_items);
@@ -73,7 +78,7 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
     if (duration == 0)
       break;
 
-    if (duration < _halfBitTicks / 5)
+    if (duration < glitchShort)
       continue;
 
     // SKEE for a long high followed by a LONGS low; we
@@ -83,27 +88,51 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
       case RESET:
         s = SEEK;
         bits_read = 0;
+        lt = 0;
       /* NO break */
       case SEEK:
-        if (duration > 3 * _halfBitTicks && level == 1)
+        if (duration > minPreamble && duration < maxPreamble && level == 1) {
           s = LONGS;
+	  f1 = duration / 4.0;
+        };
         break;
       case LONGS:
-        if (duration > 3 * _halfBitTicks  && duration < 5 * _halfBitTicks && level == 0) {
-          // _dump(items, n_items, _halfBitTicks, _realTickNanoSeconds);
+        if (duration > minPreamble && duration < maxPreamble && level == 0) {
+	  // we do not need anything special here - as all ID's have the top bit
+	  // set - so we know that the next one is a low->high transition; i.e. a '1'
+	  //
           s = READING;
+	  f2 = duration / 4.0;
         } else {
           s = RESET;
         };
         break;
       case READING:
-        if (duration > 4 * _halfBitTicks) {
+        if ((duration > maxLong || duration < minShort) || ( duration > maxShort && duration < minLong)) {
           s = RESET;
           continue;
         };
+
+        uint32_t d = duration;
+        if (duration > minLong) {
+		d = duration / 2;
+	};
+	if (d < mi) mi = d;
+	if (d > ma) ma = d;
+	lt += d;
+        // if this level is high; then we the previous one was low; so
+        // we went 'up' (as RMT only passes changes). If it is low
+        // we dit a high to low.
+	//
         out[bits_read / 8] |= (level ? 1 : 0) << (7 - (bits_read & 7));
         bits_read++;
 
+        // Skip over the next short; if any.
+        //
+        int nxtduration = (i % 2) ? items[i >> 1].duration1 : items[i >> 1].duration0;
+        if (nxtduration < maxShort ) {
+          i++;
+        };
 
         if (bits_read == 32) {
           mainsnode_datagram_t * msg = (mainsnode_datagram_t *)out;
@@ -118,11 +147,18 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
              if (got != state.end()) {
                    rec = got->second;
               	   rec.lastReported = millis();
-             	   if (rec.msg.state != msg->state) 
+             	   if ((rec.msg.state != msg->state) || (_cache == false))
                        rec.lastChanged = millis();
+		   rec.msg.state = msg->state;
 	     } else {
-                   rec = { millis(), millis(), *msg };
+                   rec = { millis(), millis(), *msg, 0.0, 0.0, 0.0 ,0,0 };
              };
+             rec.lt = lt;
+             rec.f1 = f1;
+             rec.f2 = f2;
+             rec.mi = mi;
+             rec.ma = ma;
+
 	     state[ msg->id16 ] = rec;
 
              portEXIT_CRITICAL_ISR(&queueMux);
@@ -138,12 +174,6 @@ void MainSensorReceiver::process(rmt_data_t* items, size_t n_items)
           break;
         };
 
-        // Skip over the next short.
-        //
-        int nxtduration = (i % 2) ? items[i >> 1].duration1 : items[i >> 1].duration0;
-        if (nxtduration < 1.5 * _halfBitTicks) {
-          i++;
-        };
         break;
     };
   };
@@ -157,7 +187,7 @@ static void _aggregator_ticker(void *arg)
 }
 
 void MainSensorReceiver::aggregate() {
-       std::list<mainsnode_datagram_t> lst = {};
+       std::list<record_t> lst = {};
         portENTER_CRITICAL_ISR(&queueMux);
 
         for(auto i : state) {
@@ -170,20 +200,27 @@ void MainSensorReceiver::aggregate() {
                         state[ i.first ] = rec;
 		};
 		if ((int64_t)rec.lastChanged - lastAggregation>0) {
-			lst.push_back(rec.msg);
+			lst.push_back(rec);
 		};
 	};
-
         portEXIT_CRITICAL_ISR(&queueMux);
-
 	lastAggregation = millis();
 
  	if (_callback)
-		for (mainsnode_datagram_t msg : lst) 
-			_callback(&msg);
+		for (record_t rec: lst)  {
+			_callback(&(rec.msg));
+
+	Serial.printf("Halfbit %.1f uSecond, %3.1f %% off\n", 
+		_realTickNanoSeconds * rec.lt / 32 / 1000., 
+		_realTickNanoSeconds * rec.lt / 32 / 10. / _halfBitMicroSeconds - 100.0);
+	Serial.printf("\t: %.1f/%.1f vs. %u < %.1f < %u (%.1f .. %.1f %%)\n", rec.f1, rec.f2, 
+		rec.mi, rec.lt / 32, rec.mi,
+		100.*(1. * rec.mi - _halfBitTicks) / _halfBitTicks,
+		100.*(1. * rec.ma - _halfBitTicks) /_halfBitTicks 
+		);
+	};
 };
 
-// extern "C" -- trapoline back to c++.
 #ifdef OLD_STYLE
 static MainSensorReceiver * _hidden_global = NULL;
 static void _receive_data(uint32_t *data, size_t len)
@@ -193,6 +230,14 @@ static void _receive_data(uint32_t *data, size_t len)
 #else
 static void _receive_data(uint32_t *data, size_t len, void * arg)
 {
+#if 0
+  _hidden_global->process((rmt_data_t*)data, len);
+  static int i = 0;
+  if (i == 0 && arg != _hidden_global) {
+	Serial.println("Not identical - odd.");
+	i++;
+	};
+#endif
   ((MainSensorReceiver *)arg)->process((rmt_data_t*)data, len);
 }
 #endif
@@ -220,9 +265,25 @@ void MainSensorReceiver::setup(uint32_t halfBitMicroSeconds)
   uint32_t maxTicks = (_halfBitMicroSeconds * 1000. * 6) / _realTickNanoSeconds + 1;
   rmtSetRxThreshold(rmt_recv, maxTicks);
 
+  // Shorter than this - we ignore. Which is odd - as the SetFilter should
+  // stop us seeing this.
+  glitchShort = 0.1 * _halfBitTicks;
+
+  // Slant towards the bottom of the range; as the halfbits
+  // during the data tend to be 60% longer than those in the
+  // pre-amble.
+  minPreamble = 2 * _halfBitTicks;
+  maxPreamble = 6 * _halfBitTicks;
+
+#define off (0.5) /* 25 % */
+  minShort =  (1.-off) * _halfBitTicks;
+  maxShort =  (1.+off) * _halfBitTicks;
+  minLong =   (2.-off) * _halfBitTicks;
+  maxLong =   (2.+off) * _halfBitTicks;
+
 #if MS_DEBUG
-  Serial.printf("half bit:  %12d   microSeconds\n", _halfBitMicroSeconds);
-  Serial.printf("           %12.1f nanoSeconds\n", 1000. * _halfBitMicroSeconds);
+  Serial.printf("half bit:  %12d     microSeconds\n", _halfBitMicroSeconds);
+  Serial.printf("           %12.1f  nanoSeconds\n", 1000. * _halfBitMicroSeconds);
   Serial.printf("Tick:      %12.1f nanoSeconds\n", _realTickNanoSeconds);
   Serial.printf("halfbit:   %12u   #\n", _halfBitTicks);
   Serial.printf("min:       %12u   #\n", minTicks);
@@ -254,3 +315,6 @@ MainSensorReceiver::~MainSensorReceiver() {
   rmtDeinit(rmt_recv);
 #endif
 }
+
+void MainSensorReceiver::setCache(bool onOff) { _cache = onOff; }
+

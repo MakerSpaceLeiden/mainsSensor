@@ -16,27 +16,33 @@ void setup() {
   Serial.println("Started" __FILE__" / " __DATE__ " / " __TIME__ );
 
   pinMode(GPIO_INPUT_PIN, INPUT);
-  msr.setup(200 /* 200 micro seconds for a half bit */);
-
+  // 310 .. 337 mSeconds in reality. 
+  // 1600 ok. 1650 ok but fles
+  // msr.setup(1000000/1600/2 /* approx 200 micro seconds for a half bit */);
+  // 300: ok.
+  msr.setup(338); // and around 250uSec during the pre-amble.
+  msr.setCache(false);
+  
   msr.setCallback([](mainsnode_datagram_t * node) {
     static int ok = 0;
     unsigned long secs = 1+millis() / 1000;
     ok++;
-    Serial.printf("%06lu:%02lu:%02lu %4.1f%% :\t",
-                  secs / 3600, (secs / 60) % 60, secs % 60,  ok * 100. / secs);
+    Serial.printf("%06lu:%02lu:%02lu %4.1f%% :0x%08x \t",
+                  secs / 3600, (secs / 60) % 60, secs % 60,  ok * 100. / secs,
+                  ntohl(node->raw32));
 
     switch (node->state) {
       case MAINSNODE_STATE_ON:
-        Serial.printf("Node %04x is on\n", htons(node->id16));
+        Serial.printf("Node %04x is on\n", ntohs(node->id16));
         break;
       case MAINSNODE_STATE_OFF:
-        Serial.printf("Node %04x is OFF\n", htons(node->id16));
+        Serial.printf("Node %04x is OFF\n", ntohs(node->id16));
         break;
       case MAINSNODE_STATE_DEAD:
-        Serial.printf("Node %04x has gone off air\n", htons(node->id16));
+        Serial.printf("Node %04x has gone off air\n", ntohs(node->id16));
         break;
       default:
-        Serial.printf("Node %04x sent a value %x I do not understand.\n", htons(node->id16), node->state);
+        Serial.printf("Node %04x sent a value %x I do not understand.\n", ntohs(node->id16), node->state);
     }
   });
 
@@ -57,6 +63,7 @@ void setup() {
 };
 
 void loop() {
-  Serial.println("tock");
+  Serial.println("30 s tock");
   delay(30 * 1000); // Sleep 30 seconds between tocks.
 };
+

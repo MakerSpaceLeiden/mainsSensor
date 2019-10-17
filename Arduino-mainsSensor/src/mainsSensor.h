@@ -15,7 +15,13 @@ class MainSensorReceiver {
     typedef std::function<void(mainsnode_datagram_t * dgram)> msr_callback_t;
     typedef std::function<void(rmt_data_t * items, size_t len)> msr_raw_callback_t;
 
-    typedef struct { unsigned long lastReported, lastChanged; mainsnode_datagram_t msg; } record_t;
+    typedef struct { 
+	unsigned long lastReported, lastChanged; 
+	mainsnode_datagram_t msg; 
+	double lt; 
+	double f1, f2;
+	uint32_t mi, ma; 
+     } record_t;
 
     MainSensorReceiver(
       gpio_num_t pin,
@@ -39,6 +45,7 @@ class MainSensorReceiver {
     void setup(uint32_t halfBitMicroSeconds = 0);
     void begin();
     void end();
+    void setCache(bool onOff);
 
     float nanoseconds(uint32_t ticks) {
       return ticks * _realTickNanoSeconds;
@@ -48,6 +55,7 @@ class MainSensorReceiver {
     void process(rmt_data_t * items, size_t len);
     void aggregate();
   private:
+    bool _cache;
     gpio_num_t _pin;
     msr_callback_t _callback = NULL;
     msr_raw_callback_t _rawcb = NULL;
@@ -62,5 +70,13 @@ class MainSensorReceiver {
     std::unordered_map<unsigned short, record_t> state;
     unsigned long lastAggregation;
     unsigned long maxAge = MAINSNODE_MAXAGE;
+
+    uint32_t glitchShort ;
+    uint32_t minPreamble ;
+    uint32_t maxPreamble ;
+    uint32_t minShort ;
+    uint32_t maxShort ;
+    uint32_t minLong ;
+    uint32_t maxLong ;
 };
 #endif
