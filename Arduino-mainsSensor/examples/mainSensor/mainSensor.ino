@@ -16,6 +16,8 @@ void setup() {
   Serial.println("Started" __FILE__" / " __DATE__ " / " __TIME__ );
 
   pinMode(GPIO_INPUT_PIN, INPUT);
+  msr.setDebug(&Serial);
+
   // 310 .. 337 mSeconds in reality. 
   // 1600 ok. 1650 ok but fles
   // msr.setup(1000000/1600/2 /* approx 200 micro seconds for a half bit */);
@@ -63,6 +65,6 @@ void setup() {
 };
 
 void loop() {
-  Serial.println("30 s tock");
+  // Serial.println("30sec tock");
   delay(30 * 1000); // Sleep 30 seconds between tocks.
 };

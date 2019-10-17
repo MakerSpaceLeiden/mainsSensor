@@ -35,6 +35,10 @@ class MainSensorReceiver {
     }
     ~MainSensorReceiver();
 
+    void setDebug(Print * debugPrint) {
+       _debug = debugPrint;
+    };
+
     void setCallback(msr_callback_t cb) {
       _callback = cb;
     };
@@ -56,11 +60,18 @@ class MainSensorReceiver {
     void aggregate();
   private:
     bool _cache;
+    Print * _debug = NULL;
+
     gpio_num_t _pin;
+
     msr_callback_t _callback = NULL;
     msr_raw_callback_t _rawcb = NULL;
+
     uint32_t _halfBitMicroSeconds, _halfBitTicks, _discriminatorTicks, _halfBitPreambleMicroSeconds;
     float _realTickNanoSeconds;
+
+    uint32_t tooshort, glitched, badcrc, ok, full, woke;
+    uint32_t lastReport, reportRate = 30; // every 30 seconds.
     rmt_obj_t* rmt_recv = NULL;
 
     portMUX_TYPE queueMux = portMUX_INITIALIZER_UNLOCKED;
