@@ -16,7 +16,7 @@
 #include "avr-crc8.h"
 
 // See:  https://github.com/espressif/arduino-esp32/pull/3345
-// #define OLD_STYLE 1
+ #define OLD_STYLE 1
 
 #define IFDebug if (_debug) (*_debug)
 
